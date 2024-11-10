@@ -9,52 +9,47 @@ from torch.autograd import grad
 from torchvision import transforms
 
 
-class LetNet5(nn.Module):
-    def __init__(self, n_classes=100):
-        super(self,LetNet5).__init__()
-        
-        # C1: Convolusional layer 6 filters x (5x5) 3 channels(RGB)
-        self.conv_1 = nn.Conv2d(3, 6, 5) 
-        
-        # S2: Adds a pooling layer
-        self.pool_1 = nn.AvgPool2d(2, 2) 
-        
-        # C3: Convolusional layer 16 filters x (5x5)
-        self.conv_2 = nn.Conv2d(6, 16, 5)
-        
-        # S4: Add another pooling layer
-        self.pool_2 = nn.AvgPool2d(2, 2)
-        
-        # C5: Fully Connected layer
-        self.fc_1 = nn.Linear(16*5*5, 120)
-        
-        # F6: Fully Connected layer with 84 units
-        self.fc_2 = nn.Linear(120,84)
-        
-        # Output
-        self.output = nn.Linear(84,n_classes)
+class LetNet(nn.Module):
+    def __init__(self):
+        super(LetNet, self).__init__()
+        act = nn.Sigmoid
+        self.body = nn.Sequential(
+            nn.Conv2d(3, 12, kernel_size=5, padding=5//2, stride=2),
+            act(),
+            nn.Conv2d(12, 12, kernel_size=5, padding=5//2, stride=2),
+            act(),
+            nn.Conv2d(12, 12, kernel_size=5, padding=5//2, stride=1),
+            act(),
+        )
+        self.fc = nn.Sequential(
+            nn.Linear(768, 100)
+        )
         
     def forward(self, x):
-        # C1 + S2
-        x = F.tanh(self.conv_1(x))
-        x = self.pool_1(x)
-        
-        # C3 + S4
-        x = F.tanh(self.conv_2(x))
-        x = self.pool_2(x)
-        
-        # Flatten
-        x = x.view(-1, 16*5*5)
-        
-        # Fully Connected Layer
-        x = F.tanh(self.fc_1(x))
-        x = F.tanh(self.fc_2(x))
-        
-        # Output layer
-        x = self.fc3
-        
-        return x
+        out = self.body(x)
+        out = out.view(out.size(0), -1)
+        # print(out.size())
+        out = self.fc(out)
+        return out
     
+# Taken directly from (just testing): https://github.com/mit-han-lab/dlg/blob/master/models/vision.py
+def weights_init(m):
+    if hasattr(m, "weight"):
+        m.weight.data.uniform_(-0.5, 0.5)
+    if hasattr(m, "bias"):
+        m.bias.data.uniform_(-0.5, 0.5)
+# Taken directly from, (just testing): https://github.com/mit-han-lab/dlg/blob/master/utils.py
+def cross_entropy_for_onehot(pred, target):
+    return torch.mean(torch.sum(- target * F.log_softmax(pred, dim=-1), 1))
+
+# Taken directly from (just testing): https://github.com/mit-han-lab/dlg/blob/master/utils.py
+def label_to_onehot(target, num_classes=100):
+    target = torch.unsqueeze(target, 1)
+    onehot_target = torch.zeros(target.size(0), num_classes, device=target.device)
+    onehot_target.scatter_(1, target, 1)
+    return onehot_target
+
+
 device = ('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device running on %s"%device)
 
@@ -68,7 +63,30 @@ gt_data = tp(gt_data).to(device)
 gt_data = gt_data.view(1, *gt_data.size())
 gt_label = torch.Tensor([0]).long().to(device)
 gt_label = gt_label.view(1, )
+gt_oneshot_label = label_to_onehot(gt_label)
+
 
 plt.imshow(tt(gt_data[0].cpu()))
-plt.plot("Ground Truth")
+# plt.plot("Ground Truth")
+# plt.show()
+
+n_net = LetNet().to(device)
+
+torch.manual_seed(1066)
+
+n_net.apply(weights_init)
+criterion = cross_entropy_for_onehot
+
+pred = n_net(gt_data)
+y = criterion(pred, gt_oneshot_label)
+dy_dx = torch.autograd.grad(y, n_net.parameters())
+original_dy_dx = list((_.detach().clone() for _ in dy_dx))
+
+dummy_data = torch.randn(gt_data.size()).to(device).requires_grad_(True)
+dummy_label = torch.randn(gt_oneshot_label.size()).to(device).requires_grad_(True)
+
+plt.imshow(tt(dummy_data[0].cpu()))
+plt.plot("Check")
 plt.show()
+
+optimizer = torch.optim.LBFGS([dummy_data, dummy_label])
