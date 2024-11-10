@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from torch.autograd import grad
 import torchvision
 
-device = ('cuda' if torch.cuda.is_available() else 'cpu')
 
 class LetNet5(nn.Module):
     def __init__(self, n_classes=100):
@@ -55,4 +54,9 @@ class LetNet5(nn.Module):
         x = self.fc3
         
         return x
+    
+device = ('CUDA' if torch.cuda.is_available() else 'CPU')
+print("Device running on %s"%device)
+
+
         
