@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import grad
-import torchvision
+from torchvision import transforms
 
 
 class LetNet5(nn.Module):
@@ -55,8 +55,20 @@ class LetNet5(nn.Module):
         
         return x
     
-device = ('CUDA' if torch.cuda.is_available() else 'CPU')
+device = ('cuda' if torch.cuda.is_available() else 'cpu')
 print("Device running on %s"%device)
 
+tp = transforms.ToTensor()
+tt = transforms.ToPILImage()
 
-        
+gt_data = Image.open('image/harry_ground_truth.JPG')
+
+gt_data = tp(gt_data).to(device)
+
+gt_data = gt_data.view(1, *gt_data.size())
+gt_label = torch.Tensor([0]).long().to(device)
+gt_label = gt_label.view(1, )
+
+plt.imshow(tt(gt_data[0].cpu()))
+plt.plot("Ground Truth")
+plt.show()
