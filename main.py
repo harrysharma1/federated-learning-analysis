@@ -1,4 +1,3 @@
-import math
 import matplotlib.pyplot as plt
 from pprint import pprint
 
@@ -8,6 +7,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import grad
 from torchvision import transforms
+import argparse
+
+parser = argparse.ArgumentParser(description="Example run for DLG algorithm")
+parser.add_argument('--image', type=str,default="",
+                    help='the path to customized image.')
+args = parser.parse_args()
 
 class LeNet(nn.Module):
     def __init__(self):
@@ -28,10 +33,8 @@ class LeNet(nn.Module):
     def forward(self, x):
         out = self.body(x)
         out = out.view(out.size(0), -1)
-        # print(out.size())
         out = self.fc(out)
         return out
-
         
 def weights_init(m):
     if hasattr(m, 'weight'):
@@ -56,6 +59,11 @@ tt = transforms.ToPILImage()
 
 original_data = Image.open("image/harry_ground_truth.JPG")
 original_data = tp(original_data).to(device)
+
+if len(args.image)>1:
+    image = Image.open(args.image)
+    original_data = image.convert("RGB")
+    original_data = tp(original_data).to(device)
 
 original_data = original_data.view(1, *original_data.size())
 original_label = torch.Tensor([0]).long().to(device)
